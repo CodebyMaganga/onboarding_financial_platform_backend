@@ -1,14 +1,32 @@
 from django.shortcuts import render
 from rest_framework import viewsets,generics
-from .models import Forms, FormVersion, ClientSubmission, NotificationSettings,FormField
-from .serializers import FormsSerializer, FormVersionSerializer, ClientSubmissionSerializer, NotificationSettingsSerializer,RegisterSerializer
-from rest_framework.permissions import DjangoModelPermissions
-from django.contrib.auth.models import User
+from .models import Forms, FormVersion, ClientSubmission, NotificationSettings,FormField,SystemLogs
+from .serializers import FormsSerializer, FormVersionSerializer, ClientSubmissionSerializer, NotificationSettingsSerializer,RegisterSerializer,SystemLogsSerializer,CustomTokenObtainPairSerializer
+from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+
+User = get_user_model()
+
 
 
 
 # Create your views here.
 
+def log_action(user, action, obj, message=""):
+    SystemLogs.objects.create(
+        user=user,
+        action=action,
+        object_type=obj.__class__.__name__.upper(),
+        object_id=str(obj.id),
+        message=message or f"{action} {obj.__class__.__name__} {obj}"
+    )
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+    
 class FormsViewSet(viewsets.ModelViewSet):
     queryset = Forms.objects.all()
     serializer_class = FormsSerializer
@@ -27,13 +45,18 @@ class FormsViewSet(viewsets.ModelViewSet):
         )
 
         # Create fields for this version only
-        for field in form.schema.get("fields", []):
-            FormField.objects.create(
+        for section in form.schema:  
+            for field in section.get("fields", []):
+                FormField.objects.create(
                 form_version=version,
-                name=field["name"],
-                field_type=field["type"],
+                name=field.get("label"),  
+                field_type=field.get("type"),
                 required=field.get("required", False)
             )
+        
+        log_action(self.request.user, "CREATE", form, message=f"Created form {form.name}")
+        
+       
 
     def perform_update(self, serializer):
         # Save form update
@@ -58,13 +81,24 @@ class FormsViewSet(viewsets.ModelViewSet):
         form.save(update_fields=['version'])
 
         # Create fields for this new version only
-        for field in form.schema.get("fields", []):
-            FormField.objects.create(
+        for section in form.schema:  
+            for field in section.get("fields", []):
+                FormField.objects.create(
                 form_version=version,
-                name=field["name"],
-                field_type=field["type"],
+                name=field.get("label"),  
+                field_type=field.get("type"),
                 required=field.get("required", False)
             )
+        
+        log_action(self.request.user, "UPDATE", form, message=f"Updated form {form.name}")
+                
+        
+
+    
+    def perform_destroy(self, instance):
+        log_action(self.request.user, "DELETE", instance, message=f"Deleted form {instance.name}")
+        instance.delete()
+
 
 class FormVersionViewSet(viewsets.ModelViewSet):
     queryset = FormVersion.objects.all()
@@ -74,7 +108,17 @@ class FormVersionViewSet(viewsets.ModelViewSet):
 class ClientSubmissionViewSet(viewsets.ModelViewSet):
     queryset = ClientSubmission.objects.all()
     serializer_class = ClientSubmissionSerializer
-    permission_classes = [DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
+
+
+    def perform_create(self, serializer):
+        submission = serializer.save(created_by=self.request.user)
+        log_action(self.request.user, "SUBMIT", submission, message=f" Client Submitted: {submission.form.name}")
+    
+    def perform_destroy(self, instance):
+        log_action(self.request.user, "NOTIFY", instance, message=f"Client Deleted: {instance.form.name}")
+        instance.delete()
+    
 
 class NotificationSettingsViewSet(viewsets.ModelViewSet):
     queryset = NotificationSettings.objects.all()
@@ -85,3 +129,9 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = []
+
+class SystemLogsViewSet(viewsets.ModelViewSet):
+    queryset = SystemLogs.objects.all()
+    serializer_class = SystemLogsSerializer
+    permission_classes = [DjangoModelPermissions]   
+

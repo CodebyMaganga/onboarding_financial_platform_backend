@@ -1,7 +1,22 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 
 # Create your models here.
+class User(AbstractUser):
+    ROLE_CHOICES = (
+        ('admin', 'Admin'),
+        ('staff', 'Staff'),
+        ('client', 'Client'),
+    )
+
+    role = models.CharField(max_length=100, choices=ROLE_CHOICES, default='client')
+
+    def save(self, *args, **kwargs):
+        if self.is_superuser and self.role == 'client':
+            self.role = 'admin'
+        super().save(*args, **kwargs)
+
 class Forms(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -74,3 +89,38 @@ class NotificationSettings(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
 
+
+class SystemLogs(models.Model):
+    ACTION_CHOICES = [
+        ("CREATE", "Create"),
+        ("UPDATE", "Update"),
+        ("DELETE", "Delete"),
+        ("LOGIN", "Login"),
+        ("LOGOUT", "Logout"),
+        ("SUBMIT", "Submit"),
+        ("NOTIFY", "Notify"),
+        ("OTHER", "Other"),
+    ]
+
+    OBJECT_TYPE_CHOICES = [
+        ("FORM", "Form"),
+        ("FORM_VERSION", "Form Version"),
+        ("SUBMISSION", "Submission"),
+        ("FIELD", "Field"),
+        ("NOTIFICATION_SETTINGS", "Notification Settings"),
+        ("SYSTEM_LOGS", "System Logs"),
+        ("OTHER", "Other"),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    action = models.CharField(max_length=100, choices=ACTION_CHOICES) 
+    object_type = models.CharField(max_length=100, choices=OBJECT_TYPE_CHOICES) 
+    object_id = models.CharField(max_length=100)
+    message = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} - {self.action} - {self.object_type} - {self.object_id}"
