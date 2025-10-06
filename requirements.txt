@@ -1,0 +1,8 @@
+Django>=5.0
+djangorestframework
+channels
+daphne
+celery
+redis
+django-cors-headers
+djangorestframework-simplejwt

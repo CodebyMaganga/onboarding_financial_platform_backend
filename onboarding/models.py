@@ -35,7 +35,9 @@ class Forms(models.Model):
       
 
     def __str__(self):
-        return f"{self.name} - Version:{self.version}"
+        latest_version = self.versions.order_by('-version').first()
+        version_num = latest_version.version if latest_version else 'No version'
+        return f"{self.name} - Version: {version_num}"
     
 
 class FormVersion(models.Model):

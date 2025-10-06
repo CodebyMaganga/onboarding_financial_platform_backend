@@ -27,6 +27,7 @@ class FormsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Forms
         fields = '__all__'
+        read_only_fields = ['created_at', 'created_by', 'is_active']
     
     def get_latest_version(self, obj):
         version = obj.versions.order_by("-version").first()
