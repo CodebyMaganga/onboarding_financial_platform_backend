@@ -163,8 +163,13 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': False,
 }
+CORS_ALLOW_ALL_ORIGINS = False
 
-CORS_ALLOW_ALL_ORIGINS = "https://onboarding-financial-platform-backe.vercel.app"
+CORS_ALLOWED_ORIGINS = [
+    "https://onboarding-financial-platform-backe.vercel.app",
+    "http://localhost:5173",
+]
+
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
