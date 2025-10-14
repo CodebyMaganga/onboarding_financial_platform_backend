@@ -166,7 +166,7 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOWED_ORIGINS = [
-    "https://onboarding-financial-platform-backe.vercel.app",
+    "https://onboarding-frontend-eight.vercel.app",
     "http://localhost:5173",
 ]
 
